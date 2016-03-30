@@ -68,6 +68,7 @@ def enforce(context, action, target, do_raise=True):
     if do_raise:
         extra.update(exc=exception.PolicyNotAuthorized, action=action,
                      do_raise=do_raise)
+    print("NMH 000000000 policy.py context",context)
     return _ENFORCER.enforce(action, target, context, **extra)
 
 
@@ -92,6 +93,7 @@ def wrap_check_policy(resource):
         @functools.wraps(func)
         def wrapped(self, context, target_obj, *args, **kwargs):
             check_policy(context, resource, func.__name__, target_obj)
+            print("NMH 00000000 i m here 2222 resource, func.__name__",resource, func.__name__)
             return func(self, context, target_obj, *args, **kwargs)
 
         return wrapped
@@ -105,4 +107,5 @@ def check_policy(context, resource, action, target_obj=None):
     }
     target.update(target_obj or {})
     _action = '%s:%s' % (resource, action)
+    print("NMH 00000000 i m here 111111 resource,action",resource,action)
     enforce(context, _action, target)

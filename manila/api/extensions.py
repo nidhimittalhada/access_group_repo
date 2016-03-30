@@ -344,6 +344,7 @@ def extension_authorizer(api_name, extension_name):
         else:
             act = '%s_extension:%s:%s' % (api_name, extension_name, action)
         manila.policy.enforce(context, act, target)
+    print("NMH 555555555 api/extensions.py 11111 authorize",authorize)   
     return authorize
 
 
@@ -355,5 +356,7 @@ def soft_extension_authorizer(api_name, extension_name):
             hard_authorize(context)
             return True
         except exception.NotAuthorized:
+            print("NMH 555555555 api/extensions.py 33333")   
             return False
+    print("NMH 555555555 api/extensions.py 222222 authorize",authorize)   
     return authorize

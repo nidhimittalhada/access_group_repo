@@ -85,6 +85,7 @@ class FilterScheduler(base.Scheduler):
                                             filter_properties)
 
         if not weighed_host:
+            print("NMH 1234 i m here!!! 11111")
             raise exception.NoValidHost(reason="")
 
         host = weighed_host.obj.host

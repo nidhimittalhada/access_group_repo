@@ -61,6 +61,7 @@ class Request(webob.Request):
 
     def __init__(self, *args, **kwargs):
         super(Request, self).__init__(*args, **kwargs)
+        print("NMH 33333333*********** i m tired ");
         self._resource_cache = {}
         if not hasattr(self, 'api_version_request'):
             self.api_version_request = api_version.APIVersionRequest()
@@ -203,14 +204,22 @@ class Request(webob.Request):
         Does not do any body introspection, only checks header.
         """
         if "Content-Type" not in self.headers:
+            LOG.debug("NMH 123455 in func get_content_type() returning NONe")
             return None
 
         allowed_types = SUPPORTED_CONTENT_TYPES
         content_type = self.content_type
 
+        # NOTE(markmc): text/plain is the default for eventlet and
+        # other webservers which use mimetools.Message.gettype()
+        # whereas twisted defaults to ''.
+        if not content_type or content_type == 'text/plain':
+            return None
+
         if content_type not in allowed_types:
             raise exception.InvalidContentType(content_type=content_type)
 
+        LOG.debug("NMH 123455 in func get_content_type() content_type",content_type)
         return content_type
 
     def set_api_version_request(self):
@@ -366,6 +375,7 @@ class ResponseObject(object):
         serializers on return.
         """
 
+        print("NMH 33333333*********** i m tired 11111");
         self.obj = obj
         self.serializers = serializers
         self._default_code = 200
@@ -518,25 +528,32 @@ class ResourceExceptionHandler(object):
 
         if isinstance(ex_value, exception.NotAuthorized):
             msg = six.text_type(ex_value)
+            print("I m here 3333 1111")
             raise Fault(webob.exc.HTTPForbidden(explanation=msg))
         elif isinstance(ex_value, exception.VersionNotFoundForAPIMethod):
+            print("I m here 3333 22222")
             raise
         elif isinstance(ex_value, exception.Invalid):
+            print("I m here 3333 333333333")
             raise Fault(exception.ConvertedException(
                 code=ex_value.code, explanation=six.text_type(ex_value)))
         elif isinstance(ex_value, TypeError):
             exc_info = (ex_type, ex_value, ex_traceback)
             LOG.error(_LE('Exception handling resource: %s'),
                       ex_value, exc_info=exc_info)
+            print("I m here 3333 444444444")
             raise Fault(webob.exc.HTTPBadRequest())
         elif isinstance(ex_value, Fault):
             LOG.info(_LI("Fault thrown: %s"), six.text_type(ex_value))
+            print("I m here 3333 55555555")
             raise ex_value
         elif isinstance(ex_value, webob.exc.HTTPException):
             LOG.info(_LI("HTTP exception thrown: %s"), six.text_type(ex_value))
+            print("I m here 3333 66666666")
             raise Fault(ex_value)
 
         # We didn't handle the exception
+        print("I m here 3333 77777777")
         return False
 
 
@@ -563,7 +580,7 @@ class Resource(wsgi.Application):
         :param action_peek: dictionary of routines for peeking into an action
                             request body to determine the desired action
         """
-
+        print("NMH 88888 wsgi.py __init__ i m here 1111")
         self.controller = controller
 
         default_deserializers = dict(json=JSONDeserializer)
@@ -575,6 +592,7 @@ class Resource(wsgi.Application):
         self.action_peek = dict(json=action_peek_json)
         self.action_peek.update(action_peek or {})
 
+        print("NMH 88888 wsgi.py __init__ i m here 2222")
         # Copy over the actions dictionary
         self.wsgi_actions = {}
         if controller:
@@ -588,6 +606,7 @@ class Resource(wsgi.Application):
         """Registers controller actions with this resource."""
 
         actions = getattr(controller, 'wsgi_actions', {})
+        print("NMH 88888 wsgi.py i m here 3333")
         for key, method_name in actions.items():
             self.wsgi_actions[key] = getattr(controller, method_name)
 
@@ -615,11 +634,14 @@ class Resource(wsgi.Application):
 
         # NOTE(Vek): Check for get_action_args() override in the
         # controller
+        print("I m here 3333 7777777777")
         if hasattr(self.controller, 'get_action_args'):
             return self.controller.get_action_args(request_environment)
 
         try:
             args = request_environment['wsgiorg.routing_args'][1].copy()
+            print("I m here 3333 888888888")
+
         except (KeyError, IndexError, AttributeError):
             return {}
 
@@ -637,7 +659,9 @@ class Resource(wsgi.Application):
 
     def get_body(self, request):
         try:
+            LOG.debug("NMH 123333request : %s" % request)
             content_type = request.get_content_type()
+            LOG.debug("NMH 123455 content_type %s" % content_type)
         except exception.InvalidContentType:
             LOG.debug("Unrecognized Content-Type provided in request")
             return None, ''
@@ -678,12 +702,15 @@ class Resource(wsgi.Application):
                 try:
                     with ResourceExceptionHandler():
                         gen = ext(req=request, **action_args)
+                        print("NMH 77777 i m here 000000")
                         response = next(gen)
                 except Fault as ex:
-                    response = ex
+                   print("NMH 77777 i m here 1111")
+                   response = ex
 
                 # We had a response...
                 if response:
+                    print("NMH 77777 i m here 22222")
                     return response, []
 
                 # No response, queue up generator for post-processing
@@ -693,6 +720,7 @@ class Resource(wsgi.Application):
                 post.append(ext)
 
         # Run post-processing in the reverse order
+        print("NMH 77777 i m here 3333333")
         return None, reversed(post)
 
     def post_process_extensions(self, extensions, resp_obj, request,
@@ -768,9 +796,12 @@ class Resource(wsgi.Application):
 
         # Get the implementing method
         try:
+            print("NMH 8888888 wsgi.py i m here 4444 request, action action_args content_type  body",
+                  request, action, action_args, content_type, body)
             meth, extensions = self.get_method(request, action,
                                                content_type, body)
         except (AttributeError, TypeError):
+            print("NMH 8888888 wsgi.py i m here 55555111")
             return Fault(webob.exc.HTTPNotFound())
         except KeyError as ex:
             msg = _("There is no such action: %s") % ex.args[0]
@@ -803,6 +834,7 @@ class Resource(wsgi.Application):
             return Fault(webob.exc.HTTPBadRequest(explanation=msg))
 
         # Update the action args
+        print("NMH 666666 i m here wsgi.py contents are",contents)
         action_args.update(contents)
 
         project_id = action_args.pop("project_id", None)
@@ -812,9 +844,11 @@ class Resource(wsgi.Application):
             return Fault(webob.exc.HTTPBadRequest(explanation=msg))
 
         # Run pre-processing extensions
+        print("NMH 33333 wsgi.py extensions, request action_args",extensions,request,action_args)
         response, post = self.pre_process_extensions(extensions,
                                                      request, action_args)
 
+        print("NMH 33333 wsgi.py response, post",response, post)
         if not response:
             try:
                 with ResourceExceptionHandler():
@@ -879,10 +913,13 @@ class Resource(wsgi.Application):
         """Look up the action-specific method and its extensions."""
 
         # Look up the method
+        print("NMH 44444 wsgi.py request, action, content_type, body ",
+              request,action,content_type,body)
         try:
             if not self.controller:
                 meth = getattr(self, action)
             else:
+                print("NMH 44444 wsgi.py self.controlle ",self.controller)
                 meth = getattr(self.controller, action)
         except AttributeError:
             if (not self.wsgi_actions or
@@ -908,6 +945,7 @@ class Resource(wsgi.Application):
         """Dispatch a call to the action-specific method."""
 
         try:
+            print("NMH 88888 i m here 5555 method request action_args",method, request, action_args)
             return method(req=request, **action_args)
         except exception.VersionNotFoundForAPIMethod:
             # We deliberately don't return any message information
@@ -1015,6 +1053,7 @@ class Controller(object):
 
     def __init__(self, view_builder=None):
         """Initialize controller with a view builder instance."""
+        print("I m here 3333 999999999999999")
         if view_builder:
             self._view_builder = view_builder
         elif self._view_builder_class:
@@ -1156,18 +1195,23 @@ class Controller(object):
     @staticmethod
     def is_valid_body(body, entity_name):
         if not (body and entity_name in body):
+            print("NMH 3333  i m here wsgi.py ")
             return False
 
         def is_dict(d):
             try:
                 d.get(None)
+                print("NMH 3333  i m here wsgi.py22222 ")
                 return True
             except AttributeError:
+                print("NMH 3333  i m here wsgi.py33333 ")
                 return False
 
         if not is_dict(body[entity_name]):
+            print("NMH 3333  i m here wsgi.py444444")
             return False
 
+        print("NMH 3333  i m here wsgi.py5555555")
         return True
 
 
@@ -1246,6 +1290,7 @@ class Fault(webob.exc.HTTPException):
 
     def __init__(self, exception):
         """Create a Fault for the given webob.exc.exception."""
+        print("NMH 99999 i m here *****")
         self.wrapped_exc = exception
         self.status_int = exception.status_int
 

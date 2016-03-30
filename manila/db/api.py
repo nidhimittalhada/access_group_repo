@@ -905,7 +905,51 @@ def driver_private_data_delete(context, host, entity_id, key=None):
     """Remove one, list or all key-value pairs for given host and entity_id."""
     return IMPL.driver_private_data_delete(context, host, entity_id, key)
 
+######################
 
+def access_group_create(context, values):
+    """Create an access group from the values dictionary."""
+    return IMPL.access_group_create(context, values)
+
+def access_group_get(context, values):
+    """Get an access group from the values dictionary."""
+    print"NMH 11111 db/api.py i m here"
+    return IMPL.access_group_get(context, values)
+
+def access_group_get_all(context, detailed=False):
+    """Get all access groups."""
+    return IMPL.access_group_get_all(context, detailed=detailed)
+
+def access_group_create_entry(context, values):
+    """Create an access group from the values dictionary."""
+    return IMPL.access_group_create_entry(context, values)
+
+def access_group_get_entry(context, values):
+    """Get an access group entry from the values dictionary."""
+    print"NMH 11111 db/api.py i m here"
+    return IMPL.access_group_get_entry(context, values)
+
+def access_group_entries_get_all(context, access_group_id=None, 
+                                 sort_key=None, sort_dir=None,
+                                 detailed=False):
+    """Get all access group_entries."""
+    return IMPL.access_group_entries_get_all(context, access_group_id=access_group_id,
+                                             sort_key=sort_key, sort_dir=sort_dir,
+                                             detailed=detailed)
+def get_access_for_access_entry(context, share_id, access_group_entry):
+    return IMPL.get_access_for_access_entry(context, share_id, access_group_entry)
+
+def create_share_access_group_mapping(context, values):
+    """Create an access group from the values dictionary."""
+    return IMPL.create_share_access_group_mapping(context, values)
+
+def get_share_access_group_mapping(context, values):
+    """Create an access group from the values dictionary."""
+    return IMPL.get_share_access_group_mapping(context, values)
+
+def share_access_group_mapping_destroy(context, values):
+    """Create an access group from the values dictionary."""
+    return IMPL.share_access_group_mapping_destroy(context, values)
 ####################
 
 def availability_zone_get(context, id_or_name):
