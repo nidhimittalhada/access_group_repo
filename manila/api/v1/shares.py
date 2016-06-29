@@ -499,6 +499,65 @@ class ShareMixin(object):
             raise webob.exc.HTTPBadRequest(explanation=e.msg)
         return {'access': access}
 
+    def _allow_access_group(self, req, id, body):
+        """Add share to access group mapping rule."""
+        context = req.environ['manila.context']
+        access_data = body.get('allow_access_group', body.get('allow-access-group'))
+       
+        share = self.share_api.get(context, id)
+        access_group_id = access_data['access_group']
+        
+        share_access_group_mapping = self.access_group_api.get_share_access_group_mapping(
+            context, share_id=id, access_group_id=access_group_id)
+        
+        if not share_access_group_mapping:
+            share_access_group_mapping = self.access_group_api.create_share_access_group_mapping(
+                context, share_id=id, access_group_id=access_group_id)
+            self._allow_access_group_entries(context, access_group_id, share)
+
+        return {'access_group_mapping': 
+                {
+                    'id': share_access_group_mapping['id'],
+                    'created_at': share_access_group_mapping['created_at'],
+                    'updated_at': share_access_group_mapping['updated_at'],
+                    'share_id': share_access_group_mapping['share_id'],
+                    'access_group_id': share_access_group_mapping['access_group_id'],
+                }   
+            }
+
+    def _allow_access_group_entries(self, context, access_group_id, share):
+        access_group_entries = self.access_group_api.get_all_access_group_entries(
+                                context, access_group_id, sort_key='created_at', 
+                                sort_dir='desc', detailed=False) 
+        print("NMH 8888 access_group_entry/api.py access_group_entries obtained is",access_group_entries)
+        
+        try:
+            self.share_api.allow_access_group_entries(
+                context, share, access_group_entries)
+        except exception as e:
+            error = six.text_type(e)
+            LOG.exception(error)
+            raise webob.exc.HTTPBadRequest(explanation=e.msg)
+    
+    #def _allow_access_group_entries(self, context, access_group_id, share):
+    #    access_group_entries = self.access_group_api.get_all_access_group_entries(
+    #                            context, access_group_id, sort_key='created_at', 
+    #                            sort_dir='desc', detailed=False) 
+    #    print("NMH 8888 access_group_entry/api.py access_group_entries obtained is",access_group_entries)
+    #    
+    #    for access_group_entry in access_group_entries:
+    #        print("NMH 444555555555 v1/shares.py access_group_entry is",access_group_entry)
+    #        access_to = access_group_entry.get('access_to')
+    #        access_level = access_group_entry.access_groups.get('access_level')
+    #        access_type = access_group_entry.access_groups.get('access_type')
+    #        try:
+    #            print("NMH 444555555555 v1/shares.py allow access for share access_type access_to access_level", share, access_type, access_to, access_level)
+    #            access = self.share_api.allow_access(
+    #                context, share, access_type, access_to,
+    #                access_level)
+    #        except exception.ShareAccessExists as e:
+    #            raise webob.exc.HTTPBadRequest(explanation=e.msg)
+    
     def _deny_access(self, req, id, body):
         """Remove share access rule."""
         context = req.environ['manila.context']
@@ -514,6 +573,57 @@ class ShareMixin(object):
         except exception.NotFound as error:
             raise webob.exc.HTTPNotFound(explanation=six.text_type(error))
         self.share_api.deny_access(context, share, access)
+        return webob.Response(status_int=202)
+
+    def _deny_access_group(self, req, id, body):
+        """Remove share access rule."""
+        context = req.environ['manila.context']
+        
+        print("NMH 111111 api/v1/shares.py id is",id)
+        print("NMH 111111 api/v1/shares.py body is",body)
+        access_group_id = body.get('deny_access_group')['access_group_id']
+        print("NMH 111111 api/v1/shares.py access_group_id is",access_group_id)
+
+        try:
+            share_access_group_mapping = self.access_group_api.get_share_access_group_mapping(
+                context, 
+                share_id=id,
+                access_group_id=access_group_id)
+            
+            if not share_access_group_mapping:
+                raise exception.NotFound()
+
+            share = self.share_api.get(context, id)
+
+        except exception.NotFound as error:
+            msg = _("share access group mapping not found.")
+            raise exc.HTTPNotFound(explanation=msg)
+
+        print("NMH 111111  api/v1/shares.py share_access_group_mapping is",share_access_group_mapping)        
+        self._deny_access_group_entries(context, access_group_id, share)
+
+        self.access_group_api.delete_share_access_group_mapping(
+                                        context, id, access_group_id)
+        return webob.Response(status_int=202)
+        
+    #def _deny_access_group_entries(self, context, access_group_id, id):
+    #    access_group_entries = self.access_group_api.get_all_access_group_entries(
+    #                            context, access_group_id, sort_key='created_at', 
+    #                            sort_dir='desc', detailed=False) 
+    #    for access_group_entry in access_group_entries:
+    #        print("NMH 444555555555 v1/shares.py share_id is", id)
+    #        print("NMH 444555555555 v1/shares.py access_group_entry is",access_group_entry)
+    #        self._deny_access_entry(context, share_id=id, access_group_entry=access_group_entry)
+
+    def _deny_access_group_entries(self, context, access_group_id, share):
+        access_group_entries = self.access_group_api.get_all_access_group_entries(
+                                context, access_group_id, sort_key='created_at', 
+                                sort_dir='desc', detailed=False) 
+        try:
+            self.share_api.deny_access_group_entries(
+                context, share, access_group_entries)
+        except exception.NotFound as error:
+            raise webob.exc.HTTPNotFound(explanation=six.text_type(error))
         return webob.Response(status_int=202)
 
     def _access_list(self, req, id, body):

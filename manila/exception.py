@@ -773,12 +773,26 @@ class ReplicationException(ManilaException):
 class ShareReplicaNotFound(NotFound):
     message = _("Share Replica %(replica_id)s could not be found.")
 
-
 # Tegile Storage drivers
 class TegileAPIException(ShareBackendException):
     message = _("Unexpected response from Tegile IntelliFlash API: "
                 "%(response)s")
 
-
 class StorageCommunicationException(ShareBackendException):
     message = _("Could not communicate with storage array.")
+
+# AccessGroup
+class AccessGroupNotFound(NotFound):
+    message = _("Access Group %(access_group_id)s could not be found.")
+
+class AccessGroupEntryNotFound(NotFound):
+    message = _("Access group Entry %(access_group_entry_id)s could not be found.")
+
+class ShareAccessGroupMappingNotFound(NotFound):
+    message = _("Share Access Group Mapping could not be found.")
+
+class AccessGroupEntryException(ManilaException):
+    message = _("Unable to perform an access group entry action: %(reason)s.")
+
+class ShareAccessGroupEntryExists(ManilaException):
+    message = _("Share access %(access_type)s:%(access)s exists.")

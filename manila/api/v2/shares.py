@@ -14,13 +14,14 @@
 #    under the License.
 
 from manila.api.openstack import api_version_request as api_version
+from manila.access_group import api as ag_api
 from manila.api.openstack import wsgi
 from manila.api.v1 import share_manage
 from manila.api.v1 import share_unmanage
 from manila.api.v1 import shares
 from manila.api.views import shares as share_views
 from manila import share
-
+    
 
 class ShareController(shares.ShareMixin,
                       share_manage.ShareManageMixin,
@@ -34,6 +35,7 @@ class ShareController(shares.ShareMixin,
     def __init__(self):
         super(self.__class__, self).__init__()
         self.share_api = share.API()
+        self.access_group_api = ag_api.API()
 
     @wsgi.Controller.api_version("2.4")
     def create(self, req, body):
@@ -123,6 +125,11 @@ class ShareController(shares.ShareMixin,
         else:
             return self._allow_access(req, id, body, enable_ceph=True)
 
+    @wsgi.action('allow_access_group')
+    def allow_access_group(self, req, id, body):
+        """Create share to access group mapping rule."""
+        return self._allow_access_group(req, id, body)
+
     @wsgi.Controller.api_version('2.0', '2.6')
     @wsgi.action('os-deny_access')
     def deny_access_legacy(self, req, id, body):
@@ -134,6 +141,12 @@ class ShareController(shares.ShareMixin,
     def deny_access(self, req, id, body):
         """Remove share access rule."""
         return self._deny_access(req, id, body)
+    
+    @wsgi.action('deny_access_group')
+    def deny_access_group(self, req, id, body):
+        """Remove share access rules for access group."""
+        return self._deny_access_group(req, id, body)
+
 
     @wsgi.Controller.api_version('2.0', '2.6')
     @wsgi.action('os-access_list')

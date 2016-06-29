@@ -87,6 +87,10 @@ class ShareInstanceAccess(object):
             except NotImplementedError:
                 # NOTE(u_glide): Fallback to legacy allow_access/deny_access
                 # for drivers without update_access() method support
+                print("NMH 11123334444444444444 i am going to fallback function")
+                print("NMH 11123334444444444444 i am going to add_rules",add_rules)
+                print("NMH 11123334444444444444 i am going to delete_rules",delete_rules)
+                print("NMH 11123334444444444444 i am going to remove_rules",remove_rules)
 
                 self._update_access_fallback(add_rules, context, delete_rules,
                                              remove_rules, share_instance,
@@ -96,7 +100,11 @@ class ShareInstanceAccess(object):
                 context,
                 share_instance['id'],
                 constants.STATUS_ERROR)
-            raise
+            self.db.share_instance_update_access_status_message(
+                context,
+                share_instance['id'],
+                error)
+            raise exception.ManilaException(message=error)
 
         # NOTE(ganso): remove rules after maintenance is complete
         if remove_rules:
@@ -117,6 +125,13 @@ class ShareInstanceAccess(object):
                 constants.STATUS_ACTIVE
             )
 
+            LOG.info(_LI("Access rules were successfully applied for "
+                         "share instance: %s"),
+                     share_instance['id'])
+            self.db.share_instance_update_access_status_message(
+                context,
+                share_instance['id'],
+                msg)
             LOG.info(_LI("Access rules were successfully applied for "
                          "share instance: %s"),
                      share_instance['id'])

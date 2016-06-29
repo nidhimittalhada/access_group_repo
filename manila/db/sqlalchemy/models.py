@@ -194,7 +194,6 @@ class Share(BASE, ManilaBase):
     @property
     def name(self):
         return CONF.share_name_template % self.id
-
     @property
     def export_location(self):
         if len(self.instances) > 0:
@@ -382,6 +381,7 @@ class ShareInstance(BASE, ManilaBase):
                                       constants.STATUS_ERROR),
                                  default=constants.STATUS_ACTIVE)
 
+    access_status_message = Column(String(255))
     scheduled_at = Column(DateTime)
     launched_at = Column(DateTime)
     terminated_at = Column(DateTime)
@@ -886,6 +886,57 @@ class AvailabilityZone(BASE, ManilaBase):
     name = Column(String(255), nullable=False)
 
 
+class AccessGroup(BASE, ManilaBase):
+    """Represents an access group."""
+    __tablename__ = 'access_groups'
+    id = Column(String(36), primary_key=True, nullable=False)
+    deleted = Column(String(36), nullable=False, default='False')
+    name = Column(String(255))
+    description = Column(String(255))
+    access_type = Column(String(255))
+    access_level = Column(String(2))
+    
+    access_group_entries = orm.relationship(
+        "AccessGroupEntries",
+        lazy='immediate',
+        back_populates="access_groups"
+    )
+#    access_group_entries = orm.relationship(
+#        "AccessGroupEntries",
+#        lazy='immediate',
+#        primaryjoin=(
+#            'and_('
+#            'AccessGroup.id == '
+#            'AccessGroupEntries.access_group_id, '
+#            'AccessGroupEntries.deleted == 0)'
+#        )
+#    )
+
+
+class AccessGroupEntries(BASE, ManilaBase):
+    """Represents a access group entries."""
+    __tablename__ = 'access_group_entries'
+    id = Column(String(36), primary_key=True, nullable=False)
+    deleted = Column(String(36), nullable=False, default='False')
+    access_to = Column(String(255))
+    access_group_id = Column(String(36), ForeignKey('access_groups.id'),
+                             nullable=False)
+    access_groups = orm.relationship("AccessGroup", 
+                                     lazy='immediate',
+                                     back_populates = "access_group_entries")                         
+
+
+class ShareAccessGroupMapping(BASE, ManilaBase):
+    """Represents a share access group mapping."""
+    __tablename__ = 'share_access_group_mapping'
+    id = Column(String(36), primary_key=True, nullable=False)
+    deleted = Column(String(36), nullable=False, default='False')
+    share_id = Column(String(36), ForeignKey('shares.id'),
+                      nullable=False)
+    access_group_id = Column(String(36), ForeignKey('access_groups.id'),
+                             nullable=False)
+ 
+ 
 class ConsistencyGroup(BASE, ManilaBase):
     """Represents a consistency group."""
     __tablename__ = 'consistency_groups'

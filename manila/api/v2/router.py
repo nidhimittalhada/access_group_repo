@@ -31,6 +31,8 @@ from manila.api.v1 import share_networks
 from manila.api.v1 import share_servers
 from manila.api.v1 import share_types_extra_specs
 from manila.api.v1 import share_unmanage
+from manila.api.v2 import access_groups
+from manila.api.v2 import access_group_entries
 from manila.api.v2 import availability_zones
 from manila.api.v2 import cgsnapshots
 from manila.api.v2 import consistency_groups
@@ -63,6 +65,20 @@ class APIRouter(manila.api.openstack.APIRouter):
 
         mapper.redirect("", "/")
 
+
+        self.resources["access_groups"] = access_groups.create_resource()
+        mapper.resource("access_group", "access_groups",
+                        controller=self.resources["access_groups"],
+                        collection={"detail": "GET"},
+                        member={"defaults": "GET"})
+
+        self.resources["access_group_entries"] = (access_group_entries.create_resource())
+        mapper.resource("/access_group_entry", 
+                       "/access_groups_entries", 
+                       controller=self.resources["access_group_entries"],
+                       collection={"detail": "GET"},
+                       member={"defaults": "GET"})
+                              
         self.resources["availability_zones_legacy"] = (
             availability_zones.create_resource_legacy())
         # TODO(vponomaryov): "os-availability-zone" is deprecated

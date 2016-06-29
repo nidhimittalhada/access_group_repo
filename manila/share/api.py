@@ -1180,6 +1180,53 @@ class API(base.Base):
             snapshots = results
         return snapshots
 
+    def check_access(self, ctx, share, values):
+        share_access_list = self.db.share_access_get_all_by_type_and_access(
+            ctx, share['id'], values['access_type'], values['access_to'])
+        
+        if len(share_access_list) > 0:
+            raise exception.ShareAccessGroupEntryExists(
+                access_type=values['access_type'], access=values['access_to'])
+
+    def allow_access_group_entries(self, ctx, share, access_group_entries):   
+        """Allow group of access rules to share."""
+#       policy.check_policy(ctx, 'share', 'allow_access_group')
+        
+        share = self.db.share_get(ctx, share['id'])
+        if share['status'] != constants.STATUS_AVAILABLE:
+            msg = _("Share status must be %s") % constants.STATUS_AVAILABLE
+            raise exception.InvalidShare(reason=msg)
+        
+        access_list = []
+        for access_group_entry in access_group_entries:
+            values = {
+                'share_id': share['id'],
+                'access_type': access_group_entry.access_groups.get('access_type'),
+                'access_to': access_group_entry.get('access_to'),
+                'access_level': access_group_entry.access_groups.get('access_level', None),
+            }
+            try:
+                self.check_access(ctx, share, values)
+            except exception.ShareAccessGroupEntryExists:
+                #[TODO]In case share access mapping deleted by some other means, for this entry lets try for remaining entries.
+                #just check if the message is printed here ????
+                print("NMH 1112233 access exist already for share", values['access_type'], share['id'])
+                print("NMH 1112233 continue the loop !!")
+                continue
+
+            if values['access_level'] not in constants.ACCESS_LEVELS + (None, ):
+                msg = _("Invalid share access level: %s.") % access_level
+                raise exception.InvalidShareAccess(reason=msg)
+
+            access = self.db.share_access_create(ctx, values)
+            print("NMH 113333 i m here access is",access) 
+            access_list.append(access) 
+            
+        print("NMH 1133334444 i m here access_list  is",access_list) 
+        if len(access_list) > 0:
+            for share_instance in share.instances:
+                self.allow_access_to_instance(ctx, share_instance, access_list)
+        
     def allow_access(self, ctx, share, access_type, access_to,
                      access_level=None):
         """Allow access to share."""
@@ -1255,6 +1302,43 @@ class API(base.Base):
                 )
 
             self.share_rpcapi.allow_access(context, share_instance, access)
+
+    def deny_access_group_entries(self, ctx, share, access_group_entries):   
+        """Deny group of access rules to share."""
+        #policy.check_policy(ctx, 'share', 'deny_access_group')
+        share = self.db.share_get(ctx, share['id'])
+        if not (share.instances and share.instance['host']):
+            msg = _("Share doesn't have any instances")
+            raise exception.InvalidShare(reason=msg)
+        if share['status'] != constants.STATUS_AVAILABLE:
+            msg = _("Share status must be %s") % constants.STATUS_AVAILABLE
+            raise exception.InvalidShare(reason=msg)
+
+        print("NMH 112 i m here")
+        access_list = []
+        for access_group_entry in access_group_entries:
+            values = {
+            'share_id': share['id'],
+            'access_type': access_group_entry.access_groups.get('access_type'),
+            'access_to': access_group_entry.get('access_to'),
+            'access_level': access_group_entry.access_groups.get('access_level', None),
+            }
+            try:
+                access = self.db.get_access_for_access_entry(ctx, share['id'], access_group_entry)
+            except exception.NotFound:
+                LOG.warning(_LW("Share %(share_id) to access_type %(access_type):" 
+                                "access_to %(access_to) mapping not found") % {
+                    'share_id': share['id'],
+                    'access_type': values['access_type'],
+                    'access_to': values['access_to']})
+                #[TODO]In case share access mapping deleted by some other means, for this entry lets try for remaining entries.
+                continue
+            print("NMH 113333 i m here access is",access) 
+            access_list.append(access) 
+        
+        print("NMH 1133334444 i m here access_list  is",access_list) 
+        for share_instance in share.instances:
+            self.deny_access_to_instance(ctx, share_instance, access_list)
 
     def deny_access(self, ctx, share, access):
         """Deny access to share."""

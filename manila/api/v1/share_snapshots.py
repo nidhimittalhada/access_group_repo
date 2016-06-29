@@ -110,7 +110,6 @@ class ShareSnapshotMixin(object):
         # Snapshots with no instances are filtered out.
         snapshots = list(filter(lambda x: x.get('status') is not None,
                                 snapshots))
-
         limited_list = common.limited(snapshots, req)
         if is_detail:
             snapshots = self._view_builder.detail_list(req, limited_list)

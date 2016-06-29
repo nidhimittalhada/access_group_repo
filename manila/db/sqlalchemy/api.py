@@ -1892,6 +1892,16 @@ def share_instance_update_access_status(context, share_instance_id, status):
         mapping.save(session=session)
         return mapping
 
+@require_context
+@oslo_db_api.wrap_db_retry(max_retries=5, retry_on_deadlock=True)
+def share_instance_update_access_status_message(context, share_instance_id, msg):
+    session = get_session()
+    with session.begin():
+        mapping = session.query(models.ShareInstance).\
+            filter_by(id=share_instance_id).first()
+        mapping.update({'access_status_message': msg})
+        mapping.save(session=session)
+        return mapping
 
 ###################
 
@@ -3472,6 +3482,206 @@ def availability_zone_get_all(context):
                        read_deleted="no").filter(
         models.AvailabilityZone.id.in_(enabled_services)
     ).all()
+
+####################
+
+@require_context
+def access_group_create(context, values):
+    access_group = models.AccessGroup()
+    if not values.get('id'):
+        values['id'] = six.text_type(uuid.uuid4())
+
+    values['access_group'] = access_group
+    session = get_session()
+    with session.begin():
+        access_group.update(values)
+        session.add(access_group)
+        return access_group_get(context, values['id'], session=session)
+
+def access_group_get(context, access_group_id, session=None):
+    session = session or get_session()
+    print"NMH 22222 db/sqlalchemy/api.py i m here 2222"
+    query = model_query(context, models.AccessGroup,
+                         session=session,
+                         read_deleted='no').\
+                         filter_by(id=access_group_id)
+
+#options(joinedload(models.AccessGroup.access_group_entries))
+        
+    print str(query)                                
+    result = query.first()
+    if not result:
+        raise exception.AccessGroupNotFound(
+            access_group_id=access_group_id)
+    return result
+
+def _access_group_get_all_query(context, session=None):
+    session = session or get_session()
+    query = model_query(context, models.AccessGroup, 
+                        session=session,
+                        read_deleted='no').\
+                        order_by(models.AccessGroup.id)
+    print str(query)                                
+    return query                   
+
+def access_group_get_all(context, detailed=True):
+    query = _access_group_get_all_query(context)
+#    if not detailed: 
+#        query = query.with_entities(models.AccessGroup.id,
+#                                    models.AccessGroup.name,
+#                                    models.AccessGroup.description,
+#                                    )
+    result = query.all()
+    print("NMH 8888888888999999999900000000 result",result)
+    return result
+
+@require_context
+def access_group_create_entry(context, values):
+    access_group_entry = models.AccessGroupEntries()
+    if not values.get('id'):
+        values['id'] = six.text_type(uuid.uuid4())
+
+    values['access_group_entry'] = access_group_entry
+    session = get_session()
+    with session.begin():
+        access_group_entry.update(values)
+        session.add(access_group_entry)
+        return access_group_get_entry(context, values['id'], session=session)
+
+def access_group_get_entry(context, access_group_entry_id, session=None):
+    session = session or get_session()
+    query = model_query(context, models.AccessGroupEntries,
+                         session=session,
+                         read_deleted='no').\
+                         filter_by(id=access_group_entry_id)
+
+    print str(query)                                
+    result = query.first()
+    if not result:
+        raise exception.AccessGroupEntryNotFound(
+            access_group_entry_id=access_group_entry_id)
+    return result
+
+
+def access_group_entries_get_all(context, access_group_id=None, 
+                                 sort_key=None, sort_dir=None,
+                                 detailed=False):
+   
+    print("NMH 11111222334567 access_group_entries_get_all access_group_id, sort_key, sort_dir, detailed ", 
+          access_group_id, sort_key , sort_dir , detailed )
+    query = _access_group_entry_get_all_query(
+                context, access_group_id=access_group_id,
+                sort_key=sort_key, sort_dir=sort_dir,
+                detailed=detailed)
+
+    # Returns list of shares that satisfy filters
+    print str(query)                                
+    result = query.all()
+    print("NMH 8888888888999999999900000000 result",result)
+    return result
+
+def _access_group_entry_get_all_query(context, access_group_id=None,
+                                      sort_key=None, sort_dir=None,
+                                      detailed=False, session=None):
+    session = session or get_session()
+    print("NMH 11111 access_group_id, sort_key, sort_dir, detailed ", access_group_id, sort_key , sort_dir , detailed )
+    # Init data
+    sort_key = sort_key or 'created_at'
+    sort_dir = sort_dir or 'desc'
+    
+    query = model_query(context, models.AccessGroupEntries, 
+                       session=session,
+                       read_deleted='no')
+    if access_group_id:
+        query = query.filter_by(access_group_id=access_group_id)
+
+    try:
+        attr = getattr(models.AccessGroupEntries, sort_key)
+    except AttributeError:
+        msg = _("Wrong sorting key provided - '%s'.") % sort_key
+        raise exception.InvalidInput(reason=msg)
+
+    if sort_dir.lower() == 'desc':
+        query = query.order_by(attr.desc())
+    elif sort_dir.lower() == 'asc':
+        query = query.order_by(attr.asc())
+    else:
+        msg = _("Wrong sorting data provided: sort key is '%(sort_key)s' "
+                "and sort direction is '%(sort_dir)s'.") % {
+                    "sort_key": sort_key, "sort_dir": sort_dir}
+        raise exception.InvalidInput(reason=msg)
+
+    return query        
+                       
+@require_context
+def create_share_access_group_mapping(context, values):
+    
+    print("NMH 33333 i m here 11111 in create_share_access_group_mapping***********")
+   
+    share_access_group_mapping = models.ShareAccessGroupMapping()
+    if not values.get('id'):
+        values['id'] = six.text_type(uuid.uuid4())
+    
+    session = get_session()
+    with session.begin():
+        share_access_group_mapping.update(values)
+        session.add(share_access_group_mapping)
+        return get_share_access_group_mapping(context, values, session)
+    
+def get_share_access_group_mapping(context, values, session=None):
+    session = session or get_session()
+    
+    share_id = values['share_id']
+    access_group_id = values['access_group_id']
+    print("NMH 1111 share_id access_group_id", share_id, access_group_id)
+    query = model_query(context, models.ShareAccessGroupMapping,
+                        session=session,
+                        read_deleted='no').\
+                       filter_by(share_id=share_id).\
+                       filter_by(access_group_id=access_group_id)
+    print str(query)                                
+    result = query.first()
+    if not result:
+        raise exception.ShareAccessGroupMappingNotFound()
+    return result
+
+def share_access_group_mapping_destroy(context, values):
+    
+    session = get_session()
+    
+    with session.begin():
+        access_group_mapping_ref = get_share_access_group_mapping(context, values)
+        access_group_mapping_ref.soft_delete(session=session)
+    print("NMH 444555555556666888 access_group_mapping is destroyed")
+
+
+def get_access_for_access_entry(context, share_id, access_group_entry):
+    """Get access record."""
+    session = get_session()
+    
+    print("NMH 444555555556666888 access_group_entry is",access_group_entry)
+    access_to = access_group_entry.get('access_to')
+    access_level = access_group_entry.access_groups.get('access_level')
+    access_type = access_group_entry.access_groups.get('access_type')
+    
+    print("NMH 4445 share_id is",share_id)
+    print("NMH 4445 access_to is",access_to)
+    print("NMH 55555 access_level is",access_level)
+    print("NMH 66666 access_type is",access_type)
+
+    query = model_query(context, models.ShareAccessMapping,
+                        session=session,
+                        read_deleted='no').\
+                       filter_by(share_id=share_id).\
+                       filter_by(access_type=access_type).\
+                       filter_by(access_level=access_level).\
+                       filter_by(access_to=access_to)
+    print str(query)                                
+    access = query.first()
+    if access:
+        return access
+    else:
+        raise exception.NotFound()
 
 
 ####################
